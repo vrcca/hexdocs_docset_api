@@ -24,8 +24,8 @@ defmodule DocsetApi.Mixfile do
 
   defp deps do
     [
-      {:phoenix, "~> 1.5"},
-      {:phoenix_html, "~> 2.14"},
+      {:phoenix, "~> 1.7"},
+      {:phoenix_html, "~> 3.1"},
       {:plug_cowboy, "~> 2.3"},
       {:httpoison, "~> 1.7"},
       {:poison, "~> 2.2 or ~> 3.0 or ~> 4.0"},
