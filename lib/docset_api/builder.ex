@@ -174,12 +174,15 @@ defmodule DocsetApi.Builder do
   end
 
   def build_index(%{base_dir: base_dir, files_dir: files_dir} = state) do
-    [base_dir, "Contents", "Resources", "docSet.dsidx"]
-    |> Path.join()
-    |> String.to_charlist()
-    |> Sqlitex.with_db(fn db ->
-      # Create SQLite index table
-      Sqlitex.query(db, """
+    db_path =
+      [base_dir, "Contents", "Resources", "docSet.dsidx"]
+      |> Path.join()
+
+    {:ok, db} = Exqlite.Sqlite3.open(db_path)
+
+    # Create SQLite index table
+    :ok =
+      Exqlite.Sqlite3.execute(db, """
       CREATE TABLE searchIndex(
         id INTEGER PRIMARY KEY,
         name TEXT,
@@ -188,61 +191,61 @@ defmodule DocsetApi.Builder do
         );
       """)
 
-      # Add a unique index for the name, type and path combo
-      Sqlitex.query(db, "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path)")
+    # Add a unique index for the name, type and path combo
+    :ok =
+      Exqlite.Sqlite3.execute(db, "CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path)")
 
-      # Deep-search for files
-      files = ls_r(files_dir)
+    # Deep-search for files
+    files = ls_r(files_dir)
 
-      # For each file, parse it for the right keywords and run the callback # against the result.
-      Enum.each(files, fn file ->
-        if Path.extname(file) == ".html" do
-          # Logger.debug("parse #{file}")
+    # For each file, parse it for the right keywords and run the callback # against the result.
+    Enum.each(files, fn file ->
+      if Path.extname(file) == ".html" do
+        # Logger.debug("parse #{file}")
 
-          html = Floki.parse_document!(File.read!(file))
-          relative_path = Path.relative_to(file, files_dir)
+        html = Floki.parse_document!(File.read!(file))
+        relative_path = Path.relative_to(file, files_dir)
 
-          # Set sidebar-closed sur le body au lieu de sidebar-opened
-          # Remove sidebar-button sidebar-toggle
-          # Remove icon-action display-settings
-          content =
-            FileParser.parse_zeal_navigation(html, relative_path, fn name, type, path ->
-              query =
-                "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES ('#{name}', '#{type}', '#{path}');"
+        # Set sidebar-closed sur le body au lieu de sidebar-opened
+        # Remove sidebar-button sidebar-toggle
+        # Remove icon-action display-settings
+        content =
+          FileParser.parse_zeal_navigation(html, relative_path, fn name, type, path ->
+            query =
+              "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES ('#{name}', '#{type}', '#{path}');"
 
-              {:ok, _} = Sqlitex.query(db, query)
-            end)
-            |> Floki.attr("body", "class", fn
-              nil ->
-                "sidebar-closed"
+            :ok = Exqlite.Sqlite3.execute(db, query)
+          end)
+          |> Floki.attr("body", "class", fn
+            nil ->
+              "sidebar-closed"
 
-              classes ->
-                if String.contains?(classes, "sidebar-opened") do
-                  String.replace(classes, "sidebar-opened", "sidebar-closed")
-                else
-                  "#{classes} sidebar-closed"
-                end
-            end)
-            |> Floki.find_and_update("button", fn button ->
-              button_classes = Floki.attribute(button, "class")
-
-              if Enum.all?(button_classes, &String.starts_with?(&1, "sidebar-")) or
-                   Enum.member?(button_classes, "display-settings") do
-                :delete
+            classes ->
+              if String.contains?(classes, "sidebar-opened") do
+                String.replace(classes, "sidebar-opened", "sidebar-closed")
               else
-                button
+                "#{classes} sidebar-closed"
               end
-            end)
-            |> Floki.raw_html()
+          end)
+          |> Floki.find_and_update("button", fn button ->
+            button_classes = Floki.attribute(button, "class")
 
-          File.write(
-            file,
-            content
-          )
-        else
-          Logger.debug("skip #{file}")
-        end
-      end)
+            if Enum.all?(button_classes, &String.starts_with?(&1, "sidebar-")) or
+                 Enum.member?(button_classes, "display-settings") do
+              :delete
+            else
+              button
+            end
+          end)
+          |> Floki.raw_html()
+
+        File.write(
+          file,
+          content
+        )
+      else
+        Logger.debug("skip #{file}")
+      end
     end)
 
     state

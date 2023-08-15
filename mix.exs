@@ -5,7 +5,7 @@ defmodule DocsetApi.Mixfile do
     [
       app: :docset_api,
       version: "0.1.0",
-      elixir: "~> 1.10",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -27,11 +27,9 @@ defmodule DocsetApi.Mixfile do
       {:phoenix, "~> 1.7"},
       {:phoenix_html, "~> 3.1"},
       {:plug_cowboy, "~> 2.3"},
-      {:httpoison, "~> 1.7"},
-      {:poison, "~> 2.2 or ~> 3.0 or ~> 4.0"},
-      {:sqlitex, "~> 1.7"},
-      {:esqlite, "~> 0.7.0", override: true},
-      {:floki, "~> 0.28"}
+      {:httpoison, "~> 1.8 or ~> 2.1"},
+      {:exqlite, "~> 0.13"},
+      {:floki, "~> 0.34"}
     ]
   end
 end

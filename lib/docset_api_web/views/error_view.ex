@@ -1,5 +1,5 @@
 defmodule DocsetApi.ErrorView do
-  use DocsetApi.Web, :view
+  use DocsetApi.Web, :html
 
   def render("404.html", _assigns) do
     "Page not found"
